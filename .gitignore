@@ -1,0 +1,29 @@
+# Python 
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+
+# Environments
+venv/
+env/
+.env
+.venv
+env.bak/
+venv.bak/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# VS Code
+.vscode/
+
+# PyTorch & Data
+models/
+*.pt
+*.pth
+data/
+
+# OS specific files
+.DS_Store
+Thumbs.db
