@@ -404,3 +404,35 @@ print(f"클래스 번호 매핑: {train_dataset.class_to_idx}") # {'ants': 0, 'b
 train_loader = DataLoader(dataset=train_dataset, batch_size=4, shuffle=True)
 ```
 이제 이 배달 트럭(`DataLoader`)을 4장에서 배웠던 **5단계 학습 루프**에 그대로 밀어 넣으면, "개미와 벌을 구별하는 나만의 새로운 AI 파라미터 구조"가 완성됩니다. 이것이 딥러닝 실무 파이프라인의 완성입니다!
+
+---
+
+## 10장. 거인의 어깨 위에 서다: 전이 학습 (Transfer Learning)
+**[ 실습 파일: `src/09_custom_cnn_ants_bees.py` & `src/10_transfer_learning_resnet.py` ]**
+
+우리가 모은 250장짜리 불쌍한 개미/벌 사진으로 모델을 밑바닥부터 훈련시키면(9번 스크립트) 정확도는 **60~66%** 근방에서 처참하게 무너집니다. 사진 개수가 너무 적어 모델이 수능의 본질을 깨닫지 못하고 기출문제의 "픽셀 위치만 통째로 암기"해버리는 최악의 과적합(Overfitting) 사태에 직면하기 때문입니다.
+
+이를 타개할 현업 최강의 무기가 바로 **'전이 학습(Transfer Learning)'** 입니다. 구글, MS의 초천재 연구원들이 수백만 장의 방대한 사진으로 몇 달간 훈련시켜둔 "천재의 시각 피질 뇌 구조(Pre-trained Model)"를 그대로 다운로드해 빌려 쓰고, 가장 마지막 판단을 내리는 전두엽 세포(Linear Layer)만 우리가 원하는 클래스(개미, 벌)에 맞게 싹둑 자르고 꿰매어 쓰는 수술 기법입니다.
+
+### 10.1 천재의 뇌 소환하기 (ResNet18)
+`torchvision.models` 에는 이미 수없이 많은 선배들의 훌륭한 뇌(Architecture + Weight)가 준비되어 있습니다.
+
+```python
+from torchvision import models
+from torchvision.models import ResNet18_Weights
+
+# 1. 1,000개의 클래스를 기가 막히게 맞추는 ResNet18 구조와 "훈련을 마친 가중치" 다운로드
+model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
+
+# 2. 마지막 전두엽 층(fc)의 원래 입력 크기를 기억해둠
+num_features = model.fc.in_features 
+
+# 3. 기존의 1000개짜리 출력 노드 덩어리를 떼어버리고, 
+# 방금 기억해둔 크기에서 오직 2개(개미/벌)로만 출력을 꽂아주는 새로운 신형 부품(머리) 장착!
+model.fc = nn.Linear(num_features, 2)
+```
+
+### 10.2 전이 학습 시의 마법 같은 훈련 속도
+이렇게 뇌 수술을 마친 모델을 이전 4장에서 배웠던 **표준 5단계 훈련 루프**에 태워 훈련을 돌려보기만 하면 됩니다. 
+* **결과**: `09_custom_cnn` 모델이 10번을 반복해도 60%대를 간신히 넘긴 반면, 이 스크립트(`10_transfer_learning`)에서는 거인의 어깨 위에 올라탄 덕분에 **단 1 에폭(Epoch) 만에 테스트 정확도 92%** 를 상회하며 최종적으로 **95% 이상의 파괴적 퍼포먼스**를 뽐냅니다!
+* 현업 컴퓨터 비전 실무의 90% 이상은 처음부터 내 코드로 C++ 처럼 짜는 것이 아니라, 이렇게 Hugging Face 나 torchvision 에서 증명된 최고의 뇌를 빌려와 나의 200장짜리 커스텀 데이터셋에 구겨 넣어 재학습(Fine-Tuning) 시키는 것으로 마무리됩니다.
