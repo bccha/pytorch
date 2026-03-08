@@ -430,7 +430,7 @@ my_dataset/
 from torchvision.datasets import ImageFolder
 import torchvision.transforms as transforms
 
-# 1. 전처리 파이프라인 (224x224로 자르고 텐서로 변환)
+# 1. 전처리 파이프라인 (224x224로 자르고 텐서 변환)
 custom_transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
@@ -444,3 +444,25 @@ print(f"클래스 종류: {train_dataset.classes}") # ['ants', 'bees']
 print(f"클래스 번호표: {train_dataset.class_to_idx}") # {'ants': 0, 'bees': 1}
 ```
 이제 이렇게 뚝딱 만들어진 `train_dataset`을 우리가 배운 `DataLoader` 트럭에 싣기만 하면 나만의 사진 데이터로 AI를 학습시킬 모든 준비가 끝납니다!
+
+## 15. 전이 학습(Transfer Learning)의 작동 원리
+수백만 장의 이미지(ImageNet)로 이미 똑똑해진 거대 모델(ResNet 등)을 가져와 내 데이터셋에 맞게 재활용하는 현업 필수 기법입니다.
+
+### 🧠 1. CNN의 분업: "눈(특징 추출기)"과 "뇌(분류기)"
+CNN은 크게 두 파트로 역할을 나눕니다.
+* **눈 (상단 다수의 Conv 층)**: 이미지의 선, 질감, 색상, 패턴 등을 완벽하게 분석합니다. (ResNet은 이 눈이 엄청나게 발달한 '천재의 시력'을 가졌습니다.)
+* **뇌/입 (가장 마지막 Linear 층)**: 눈이 본 패턴들을 종합해 "이건 강아지야!"라고 결론 짓고 외칩니다.
+
+### ✂️ 2. 머리 뜯어고치기 (구조 변경)
+거인의 '눈'은 그대로 가져다 쓰지만, 거인의 '입'은 1,000개의 클래스(영단어)를 내뱉도록 조율되어 있습니다. 우리가 원하는 것은 '개미'와 '벌' 딱 두 단어뿐입니다. 그래서 **맨 마지막 Linear 층 부품만 강제로 뜯어내고, 출력이 딱 2개인 백지상태의 새 뇌(머리)를 끼워 넣습니다.**
+```python
+# 기존 1000개짜리 출력을 떼어버리고 우리의 2개 클래스(개미, 벌)용 새 머리 장착
+model.fc = nn.Linear(model.fc.in_features, 2)
+```
+
+### ✌️ 3. 두 가지 훈련 전략: 파인 튜닝 vs 특성 추출
+새 머리를 끼웠으면 어떻게 훈련을 시킬까요?
+1. **미세 조정 (Fine-Tuning)**: 
+   전체 뼈대(거인의 눈)와 새로 끼운 머리의 나사를 한 번에 조입니다. 우리 데이터 사진에 맞게 **기존 거인의 눈의 영점도 미세하게 조절**해 주면서, 새 머리도 훈련시킵니다. (성능이 가장 극대화되며, 우리가 `10_transfer_learning_resnet.py`에서 사용한 방식입니다.)
+2. **특성 추출 (Feature Extraction / Freezing)**:
+   거인의 눈(Conv 층 전체)을 얼음(Freeze)처럼 단단히 고정시켜 파라미터가 1도 바뀌지 못하게 막아둡니다. 오직 **방금 새로 끼운 머리통 하나만 집중적으로 훈련(가중치 업데이트)**시킵니다. (데이터가 극단적으로 적거나, 학습 속도를 엄청나게 올려야 할 때 씁니다.)
