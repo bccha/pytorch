@@ -97,41 +97,7 @@ out.backward() # 역전파(Backpropagation) 수행
 print(x.grad)  # d(out)/dx의 결과가 출력됨
 ```
 
-### 📈 연산 그래프 (Computational Graph) 이해하기
-PyTorch는 위 코드가 실행될 때 내부적으로 아래와 같은 방향성 비순환 그래프(DAG)를 실시간으로 그려나갑니다. `.backward()`를 호출하면 반대 방향으로 미분 연산을 거슬러 올라갑니다.
 
-```mermaid
-graph TD
-    classDef tensor fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
-    classDef op fill:#fff3e0,stroke:#e65100,stroke-width:2px,shape:circle;
-    
-    X["x (Input)<br/>requires_grad=True"]:::tensor
-    Add(("Add (+ 2)")):::op
-    Y["y (Intermediate)"]:::tensor
-    Pow(("Pow (^ 2)")):::op
-    Mul(("Mul (* 3)")):::op
-    Z["z (Intermediate)"]:::tensor
-    Mean(("Mean()")):::op
-    Out["out (Output)"]:::tensor
-
-    %% 순전파 (Forward) 방향
-    X -->|Forward| Add
-    Add --> Y
-    Y --> Pow
-    Pow --> Mul
-    Mul --> Z
-    Z --> Mean
-    Mean --> Out
-    
-    %% 역전파 (Backward) 방향
-    Out -.->|Backward<br/>dz/dout| Mean
-    Mean -.->|dy/dz| Mul
-    Mul -.->|dx/dy| Pow
-    Pow -.-> Add
-    Add -.->|dx.grad| X
-    
-    linkStyle 7,8,9,10,11 stroke:#d50000,stroke-width:2px,stroke-dasharray:5 5;
-```
 ## 5. 신경망 모델 만들기 (torch.nn)
 PyTorch에서 신경망은 `torch.nn` 패키지를 사용하여 생성합니다. `nn.Module`을 상속받아 모델 구조를 정의합니다.
 
