@@ -490,3 +490,18 @@ self.embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=8)
 1. **입력**: 4개의 단어가 순서대로 투입됩니다.
 2. **순환(Recurrent)**: RNN이 첫 단어 "이"를 읽어 메모장을 쓰고, 그 메모장을 든 채로 두 번째 단어 "영화"를 읽어 메모장을 업데이트합니다. 이렇게 4개의 단어를 차례대로 다 읽습니다.
 3. **최종 판단**: 문장을 끝까지 다 읽은 **가장 마지막 순간의 메모장(최종 문맥)**만을 빼내어, 긍정인지 부정인지 Linear 층으로 분류(`self.fc(final_context)`)합니다.
+
+### ♻️ 4. 피드백 루프: 과거의 나를 다시 입력으로
+RNN이 과거의 문맥을 잊지 않는 가장 핵심적인 이유는, **자신이 방금 뱉어낸 출력(Hidden State)을 그대로 다음 계산의 입력으로 재사용(피드백)**하기 때문입니다.
+```python
+# RNN 내부의 핵심 동작 원리 (수도 코드)
+hidden_state = 0
+for word in sentence:
+    # 🎯 현재 단어와 '이전 단어까지의 기억(hidden_state)'이 동시에 입력으로 들어갑니다!
+    hidden_state = f(word, hidden_state) 
+```
+
+### 🛑 5. 고정된 창문(Sliding Window)과의 차이
+우리가 이전에 배운 흔한 다층 퍼셉트론(MLP)이나 N-gram 방식(예: Andrej Karpathy의 `makemore` 초기 모델)은 한 번에 **정해진 개수(예: 3개)의 글자만 잘라서 보는 '고정된 창문' 방식**입니다.
+* **Sliding Window 방식**: `y = f(x_1, x_2, x_3)` 👈 4글자 전의 정보는 절대 알 수 없습니다. 기억(누적)이 불가능합니다.
+* **RNN 방식**: 단어를 1개씩만 넣어도, `hidden_state` 덕분에 100단어 전의 분위기까지 계속 뭉치고 뭉쳐서 눈덩이처럼 **누적**할 수 있습니다.
