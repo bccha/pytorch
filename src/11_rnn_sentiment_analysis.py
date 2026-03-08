@@ -128,5 +128,38 @@ def main():
             # 원래 숫자를 보기 좋게 텍스트로 변환 (Pad는 무시)
             print(f"문장 데이터 {sentence} \t=> 예측: {pred_label} (긍정 확률: {prob:.1f}%) | 정답: {'긍정' if y_data[i]==1 else '부정'}")
 
+    print("\n[ 🧐 새로운 문장(10개) 일반화 테스트 ]")
+    print("훈련 데이터에 없던 새로운 문장 조합을 모델이 얼마나 잘 맞추는지 확인합니다.")
+    # 새로운 조합 10가지
+    test_x_data = [
+        [3, 4, 5, 0],    # "정말 최고 추천" (긍정)
+        [1, 2, 7, 10],   # "이 영화 돈 낭비" (부정)
+        [4, 2, 3, 5],    # "최고 영화 정말 추천" (긍정)
+        [1, 9, 3, 8],    # "이 시간 정말 아까워" (부정)
+        [2, 6, 7, 8],    # "영화 최악 돈 아까워" (부정)
+        [5, 1, 2, 4],    # "추천 이 영화 최고" (긍정)
+        [3, 9, 10, 6],   # "정말 시간 낭비 최악" (부정)
+        [1, 2, 4, 0],    # "이 영화 최고 <PAD>" (긍정)
+        [7, 9, 8, 0],    # "돈 시간 아까워 <PAD>" (부정)
+        [2, 3, 5, 4]     # "영화 정말 추천 최고" (긍정)
+    ]
+    # 실제 사람의 생각(정답)
+    test_y_data = [1, 0, 1, 0, 0, 1, 0, 1, 0, 1]
+    
+    test_inputs = torch.tensor(test_x_data, dtype=torch.long)
+    
+    with torch.no_grad():
+        new_preds = model(test_inputs)
+        
+        for i, sentence in enumerate(test_x_data):
+            pred_label = "긍정 😍" if new_preds[i].item() > 0.5 else "부정 😡"
+            prob = new_preds[i].item() * 100
+            expected = '긍정' if test_y_data[i] == 1 else '부정'
+            
+            # 예측값과 실제값이 일치하는지 판별
+            is_correct = "✅" if (new_preds[i].item() > 0.5) == (test_y_data[i] == 1) else "❌"
+            
+            print(f"새로운 문장 {sentence} \t=> 예측: {pred_label} (확률: {prob:5.1f}%) | 실제: {expected} {is_correct}")
+
 if __name__ == '__main__':
     main()
