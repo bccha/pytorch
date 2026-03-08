@@ -379,3 +379,68 @@ random.seed(42)
 np.random.seed(42)
 ```
 이렇게 시드를 고정하면 내부의 "난수 생성기"가 항상 같은 패턴의 가짜 난수만 뱉어내게 되므로, 100번을 돌려도 정확히 일치하는 소수점 아래 정확도가 나오게 됩니다!
+
+## 13. 모델 저장하고 불러오기 (Save & Load)
+기껏 며칠에 걸쳐 99% 정확도로 학습시킨 모델이 파이썬 스크립트 종료와 함께 증발해버린다면 끔찍할 것입니다. PyTorch에서는 모델이 학습한 "가중치(뇌 세포의 연결 강도)" 숫자들을 하드디스크에 영구적인 파일(`.pth` 또는 `.pt`) 형태로 안전하게 저장할 수 있습니다.
+
+### 💾 1. 가중치만 저장하기 (실무 권장 방식)
+모델의 껍데기(클래스 뼈대)는 파이썬 코드에 남겨두고, 오직 **진기스칸처럼 모아둔 파라미터 숫자들(가중치와 편향 딕셔너리)**만 쏙 빼서 저장하는 가장 가볍고 안전한 방식입니다.
+
+```python
+# [저장할 때] 모델의 상태 딕셔너리(state_dict)만 뽑아서 저장!
+torch.save(model.state_dict(), './my_best_model.pth')
+```
+
+### 🧠 2. 가중치 불러오기 (Inference / 추론)
+나중에 며칠 뒤 컴퓨터를 다시 켜서 예측만 빠르게 해보고 싶다면, 똑같은 껍데기(클래스)를 하나 만든 뒤 저장해둔 영혼(가중치)을 불어넣으면 됩니다.
+```python
+# 1. 빈 껍데기 모델 준비
+model = MNIST_CNN().to(device)
+
+# 2. 파일에서 영혼(가중치 딕셔너리) 읽어오기
+loaded_weights = torch.load('./my_best_model.pth')
+
+# 3. 껍데기에 영혼 주입! (이제 다시 99% 천재 모델로 복구됨)
+model.load_state_dict(loaded_weights)
+
+# 4. (필수) 추론을 할 거라면 반드시 평가 스위치를 끄세요!
+model.eval()
+```
+
+## 14. 나만의 데이터셋 폴더 마법: ImageFolder
+수만 장의 사진들을 하나하나 `Dataset` 클래스로 짜서 `if`문으로 정답을 매길(라벨링) 수는 없습니다. 피사체가 들어있는 **"폴더 이름" 자체를 정답(라벨)으로 자동 인식하게 만드는 꿀 모듈**이 바로 `ImageFolder` 입니다!
+
+### 🗂️ 폴더 구조 준비
+현업에서 전이 학습(Transfer Learning)을 할 때 가장 기본이 되는 데이터 정리 방식입니다.
+```text
+my_dataset/
+  ├── train/               # 훈련용 폴더
+  │     ├── ants/          # 이 폴더 안의 모든 사진은 '0번(ants)' 정답표가 붙음!
+  │     │    ├── ant1.jpg
+  │     │    └── ant2.jpg
+  │     └── bees/          # 이 폴더 안의 모든 사진은 '1번(bees)' 정답표가 붙음!
+  │          └── bee1.jpg
+  └── val/                 # 평가용 폴더 (폴더 구조는 train과 똑같이 구성)
+```
+
+### 🚀 코드 한 줄로 10만 장 라벨링 끝내기
+따로 복잡한 코딩 없이 `ImageFolder` 모듈 하나면 이 거대한 폴더를 PyTorch가 읽을 수 있는 공식 `Dataset` 자판기로 한 방에 바꿔줍니다. 더불어 크기가 제각각인 사진들을 `Custom Transform`으로 똑같은 크기로 자르고 텐서로 바꿔주는 파이프라인까지 연결해 줍니다.
+
+```python
+from torchvision.datasets import ImageFolder
+import torchvision.transforms as transforms
+
+# 1. 전처리 파이프라인 (224x224로 자르고 텐서로 변환)
+custom_transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+])
+
+# 2. 마법의 ImageFolder 호출
+# 알아서 사진을 다 뒤져서 폴더명 기준으로 [사진, 라벨] 묶음을 만들어줌
+train_dataset = ImageFolder(root='./my_dataset/train', transform=custom_transform)
+
+print(f"클래스 종류: {train_dataset.classes}") # ['ants', 'bees']
+print(f"클래스 번호표: {train_dataset.class_to_idx}") # {'ants': 0, 'bees': 1}
+```
+이제 이렇게 뚝딱 만들어진 `train_dataset`을 우리가 배운 `DataLoader` 트럭에 싣기만 하면 나만의 사진 데이터로 AI를 학습시킬 모든 준비가 끝납니다!

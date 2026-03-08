@@ -321,5 +321,86 @@ my_loader = DataLoader(
 
 이미지 처리에 특화된 "공간 보존"의 강력함을 피부로 증명할 고급 신경망 챕터입니다.
 - **FC 모델 구조의 한계**: 바로 앞장(6장)에서 만든 선형 모델은 이미지를 한 줄기 끈처럼 구겨 펴버려, "숫자 구멍의 안쪽과 바깥쪽", "이전 줄 픽셀과 다음 줄 픽셀의 선분 연결" 같은 2차원 공간 연관성을 박살 내버렸습니다.
-- **CNN 구조의 우월함**: 인간의 각막 망막 구조처럼 2차원 공간 형태를 그대로 유지하면서, **돋보기 역할(Conv2d 레이어)**로 이미지를 훑어 주변 외곽선 패턴(특징) 등을 뽑아냅니다.
 - **성과**: 6장의 FC 모델과 똑통한 파라미터 구조와 단지 5번(5 Epoch)의 똑같은 조건으로 재훈련을 진행한 결과, 눈 깜짝할 사이에 미친 퍼포먼스를 내며 **99.11%**라는 최고 수준의 정확도를 보였습니다. 이미지 데이터는 1차원 평탄화(Linear) 대비 공간 밀착형 합성곱(CNN) 뷰어 파이프라인이 압도적이라는 진리를 방증합니다.
+
+---
+
+## 8장. 천재의 뇌 영구 보존하기: 모델 Save & Load
+**[ 연관 실습 파일: `src/07_mnist_cnn.py` ]**
+
+며칠 동안 엄청난 전기세(GPU)를 태워 얻어낸 99% 정확도의 모델이 파이썬 창을 닫는 순간 휘발된다면 악몽일 것입니다. 완성된 신경망의 "가중치(Weight)"를 영구적인 파일 구조로 하드디스크에 구워내는 법을 배웁니다.
+
+### 8.1 껍데기 말고 알맹이(가중치)만 빼서 저장하기
+객체 통째로(`torch.save(model, path)`) 저장하는 것은 코드 구조에 종속되어 나중에 불러올 때 클래스 의존성 에러가 밥 먹듯 터집니다. **실무의 표준은 오직 숫자로만 이루어진 신경망 파라미터 딕셔너리(`state_dict`)만을 순수하게 축출해 저장하는 것입니다.**
+
+```python
+# 1. 모델의 모든 레이어의 파라미터가 담긴 순수 숫자 덩어리 추출
+weights_only = model.state_dict()
+
+# 2. .pth 혹은 .pt 확장자로 영구 보존
+torch.save(weights_only, './mnist_cnn_model.pth')
+print("가중치 저장 완료!")
+```
+
+### 8.2 영혼 주입하기: 가중치 불러오기 (Inference / 추론)
+나중에 서비스(예: 서버/앱 환경)에 이 모델을 배포하거나 NPU에 탑재하기 직전, 평가만 쌩쌩하게 돌리고 싶을 때 사용합니다.
+
+```python
+# 1. 뼈대(클래스)를 똑같이 백지상태로 조립합니다.
+model = MNIST_CNN().to(device)
+
+# 2. 하드디스크에 보존된 영혼(가중치)을 불러옵니다.
+loaded_weights = torch.load('./mnist_cnn_model.pth')
+
+# 3. 뼈대에 영혼을 주입합니다. (이때 구조가 단 1줄이라도 다르면 튕겨냅니다!)
+model.load_state_dict(loaded_weights)
+
+# 4. 🚨 초보자의 잦은 실수: 가중치를 불러왔으면 제발 훈련 스위치를 끄세요!
+model.eval() 
+```
+
+---
+
+## 9장. 실전 전이 학습의 시작: `ImageFolder` 마법
+**[ 실습 파일: `src/08_custom_image_dataset.py` ]**
+
+지금까지는 PyTorch가 곱게 포장해둔 `datasets.MNIST` 장난감만 가지고 놀았습니다. 현업에서는 내 폴더에 쌓인 수십만 장의 불규칙한 사진 데이터를 모델에 직접 먹여야 합니다.
+
+### 9.1 현업 표준 폴더 트리 구조 만들기
+전 세계 컴퓨터 비전 연구자들이 공용으로 합의한 가장 아름다운 데이터 폴더 구조입니다. 사진이 담긴 **"가장 마지막 폴더의 이름"이 곧 모델이 외워야 할 "정답 반장(Label/Class)"**이 됩니다.
+
+```text
+hymenoptera_data/
+  ├── train/               
+  │     ├── ants/          <-- 이 폴더 안의 사진들은 알아서 예측 정답 '0'번표 획득!
+  │     │    ├── 1.jpg
+  │     │    └── 2.jpg
+  │     └── bees/          <-- 이 폴더 안의 사진들은 알아서 예측 정답 '1'번표 획득!
+  │          └── 3.jpg
+  └── val/                 <-- 평가용 폴더도 train과 완벽히 동일한 구조로 짭니다.
+```
+
+### 9.2 `ImageFolder` 단 한 줄의 기적
+데이터 폴더 구조만 위처럼 예쁘게 깎아두면, PyTorch의 `datasets.ImageFolder`라는 마법의 모듈이 사진 천만 장의 경로를 몽땅 스캔해서 **정답 라벨링 + 원핫 인코딩 딕셔너리 매핑을 단 1줄 만에 끝내줍니다.**
+
+```python
+import torchvision.transforms as transforms
+from torchvision.datasets import ImageFolder
+from torch.utils.data import DataLoader
+
+# 1. [필수] 스마트폰 사진, DSLR 사진 크기가 전부 다르므로 입력 사이즈를 강제 통일!
+custom_transform = transforms.Compose([
+    transforms.Resize((224, 224)), # 모델 입으로 들어가기 위해 224x224 도마 위에서 균일하게 자름
+    transforms.ToTensor(),         # 이미지 픽셀(0~255)을 파이토치 텐서(0.0~1.0)로 변환
+])
+
+# 2. 기적의 폴더 스캐닝
+train_dataset = ImageFolder(root='./data/hymenoptera_data/train', transform=custom_transform)
+
+print(f"클래스 종류: {train_dataset.classes}")        # ['ants', 'bees']
+print(f"클래스 번호 매핑: {train_dataset.class_to_idx}") # {'ants': 0, 'bees': 1}
+
+# 3. 배달 트럭(DataLoader)에 태우면 학습 준비 완료
+train_loader = DataLoader(dataset=train_dataset, batch_size=4, shuffle=True)
+```
+이제 이 배달 트럭(`DataLoader`)을 4장에서 배웠던 **5단계 학습 루프**에 그대로 밀어 넣으면, "개미와 벌을 구별하는 나만의 새로운 AI 파라미터 구조"가 완성됩니다. 이것이 딥러닝 실무 파이프라인의 완성입니다!
