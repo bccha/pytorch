@@ -119,5 +119,14 @@ def main():
     accuracy = 100 * correct / total
     print(f"\n최종 테스트 정확도 (CNN): {accuracy:.2f}%")
 
+    # ==========================================
+    # [5] 모델 저장 (Save)
+    # ==========================================
+    save_path = './mnist_cnn_model.pth'
+    print(f"\n[저장] 훈련된 모델의 가중치를 '{save_path}'에 저장합니다...")
+    # 모델의 현재 가중치(파라미터 숫자들)만 깔끔하게 빼내서 딕셔너리 형태로 묶어 영구 저장합니다.
+    torch.save(model.state_dict(), save_path)
+    print("저장 완료! 이제 코드가 종료되어도 똑똑해진 뇌(가중치)는 하드디스크에 남아있습니다.")
+
 if __name__ == '__main__':
     main()
