@@ -539,4 +539,70 @@ model.fc = nn.Linear(num_features, 2)
    단어는 파편화된 매력을 가집니다. 성별, 신분, 감정, 먹을 수 있는지 여부 등 수없이 많은 속성축(Axis) 위에서 각각 점수(좌표)를 매겨 허공에 던져놔야, 다른 단어들과 의미상 위치가 부딪히지(Collision) 않습니다. 결국 우리가 선언한 '8차원'이란, 단어를 묘사할 수 있는 '8가지 알려지지 않은 미묘한 특징(Feature)'을 담는 그릇 크기이며, 이는 딥러닝이 아무 숫자(Random)나 집어넣은 거대한 엑셀 표에서 시작해 점차 정교한 좌표로 스스로 깎아나가는(`nn.Linear`의 파라미터 업데이트와 동치인) 마법입니다.
 2. **은닉 상태 크기의 의미 (`hidden_size=16`)**
    "이 영화 정말" 이라는 엄청난 배경 문맥을 달랑 숫자 한 개(예: 0.55)로 요약했다고 칩시다. 0.55만 보고 이게 기쁘다는 건지 슬프다는 건지 어떻게 구별할까요? 이렇게 정보가 꽉 막혀 유실되는 것을 **병목(Bottleneck)**이라고 합니다.
-   따라서 RNN은 과거 문맥의 "감정 온도", "말하는 사람의 대상", "품사" 등 다양한 시퀀스의 뉘앙스를 나눠 담기 위한 **'16칸짜리 (또는 1024칸짜리) 거대한 기억의 수납장'**을 가지는 것입니다. 차원 수가 클수록 수납공간(모델 체급)이 커지므로, 어제 읽은 단어의 느낌을 훨씬 더 섬세하게 오늘 단어와 버무릴 수 있습니다!
+   따라서 RNN은 과거 문맥의 "감정 온도", "말하는 전자의 대상", "품사" 등 다양한 시퀀스의 뉘앙스를 나눠 담기 위한 **'16칸짜리 (또는 1024칸짜리) 거대한 기억의 수납장'**을 가지는 것입니다. 차원 수가 클수록 수납공간(모델 체급)이 커지므로, 어제 읽은 단어의 느낌을 훨씬 더 섬세하게 오늘 단어와 버무릴 수 있습니다!
+
+---
+
+## 📚 [부록] PyTorch 치트 시트: 초보자를 위한 핵심 연산 매뉴얼
+
+딥러닝 실습 중 가장 빈번하게 마주치는 PyTorch 핵심 규칙과 함수 모음입니다. (함수명을 클릭하면 공식 매뉴얼로 이동합니다.)
+
+### 0. 텐서 브로드캐스팅 (Broadcasting) 마법
+PyTorch는 모양(Shape)이 완전히 똑같지 않은 두 텐서끼리 덧셈, 곱셈 연산을 시도해도, **특정 조건만 맞으면 알아서 부족한 차원을 쫙쫙 늘려 복사(Broadcast)해서 계산**해 주는 마법을 부립니다.
+
+* **동작 원리**: 뒤에서부터(오른쪽 차원부터) 비교했을 때, 두 텐서의 차원 크기가 **"같거나 둘 중 하나가 `1`이면"** 알아서 통과됩니다!
+* **실무 예시 (이미지 정규화)**:
+  * `이미지 데이터`: `[Batch_64, Channel_3, Height_224, Width_224]`
+  * `RGB 평균값`: `[Channel_3, 1, 1]` (우리가 빼줄 텐서)
+  * 빼기 연산(`이미지 - 평균값`)을 하면, 파이토치가 알아서 `[3, 1, 1]`을 `[64, 3, 224, 224]` 크기로 거대하게 뻥튀기 복사해서 64장 모든 사진의 224x224 픽셀 몽땅 한 번에 뺄셈해 버립니다. 끔찍한 `for`문 생략의 일등 공신입니다.
+
+### 1. 텐서 생성 및 모양 변환 (Tensor Creation & Shape)
+뼈대가 되는 숫자 배열(Tensor)을 만들거나 모양을 바꿀 때 사용합니다.
+
+| 분류 | 함수/메서드 | 간단 설명 | 실무 예제 코드 |
+| :---: | :--- | :--- | :--- |
+| **생성** | [`torch.tensor()`](https://pytorch.org/docs/stable/generated/torch.tensor.html) | 일반 파이썬 리스트나 넘파이 배열을 PyTorch 텐서로 변환합니다. | `t = torch.tensor([1, 2, 3])` |
+| **초기화** | [`torch.zeros()`](https://pytorch.org/docs/stable/generated/torch.zeros.html) / [`torch.randn()`](https://pytorch.org/docs/stable/generated/torch.randn.html) | 0으로 채워진 빈 텐서를 만들거나, 정규분포의 무작위 난수(Random) 텐서를 만듭니다. (주로 가중치 초기화 시 사용) | `z = torch.zeros(3, 4)`<br>`r = torch.randn(256, 128)` |
+| **모양 변경** | [`tensor.view()`](https://pytorch.org/docs/stable/generated/torch.Tensor.view.html) / [`tensor.reshape()`](https://pytorch.org/docs/stable/generated/torch.reshape.html) | 데이터(메모리)를 건드리지 않고 텐서의 겉껍데기(모양, Dimension)만 다시 조립합니다. | `x = x.view(-1, 28*28)` |
+| **차원 조작** | [`tensor.unsqueeze()`](https://pytorch.org/docs/stable/generated/torch.unsqueeze.html) / [`tensor.squeeze()`](https://pytorch.org/docs/stable/generated/torch.squeeze.html) | 특정 위치에 '크기가 1인 가짜 차원'을 끼워 넣거나(un), 반대로 크기가 1인 차원을 전부 쥐어짜서 버립니다(sq). | `x = x.unsqueeze(dim=0)` |
+| **행렬 뒤집기** | [`tensor.transpose()`](https://pytorch.org/docs/stable/generated/torch.transpose.html) / [`tensor.permute()`](https://pytorch.org/docs/stable/generated/torch.permute.html) | 사진의 축(예: Channel, Height, Width) 순서를 뒤바꿀 때 사용합니다. `permute`는 여러 축을 한 번에 바꿀 수 있습니다. | `img = img.permute(2, 0, 1)` |
+
+### 2. 수학 및 집계 연산 (Math & Aggregation)
+신경망 내부의 계산이나 손실(Loss), 정확도를 구할 때 필수적인 연산입니다.
+
+| 분류 | 함수/메서드 | 간단 설명 | 실무 예제 코드 |
+| :---: | :--- | :--- | :--- |
+| **행렬 곱셈** | [`torch.matmul()`](https://pytorch.org/docs/stable/generated/torch.matmul.html) 또는 `@` | 딥러닝 연산의 꽃인 거대한 두 행렬 간의 선형 대수 곱셈(GEMM)을 수행합니다. | `y = torch.matmul(W, x)`<br>또는 `y = W @ x` |
+| **최대값/인덱스** | [`torch.max()`](https://pytorch.org/docs/stable/generated/torch.max.html) / [`torch.argmax()`](https://pytorch.org/docs/stable/generated/torch.argmax.html) | 텐서에서 가장 값이 큰 원소(확률)를 찾거나, 그 원소가 있는 **1등 자리 번호(인덱스)**를 반환합니다. (분류기 결과 확인용) | `_, pred = torch.max(out, 1)` |
+| **평균/합계** | [`torch.mean()`](https://pytorch.org/docs/stable/generated/torch.mean.html) / [`torch.sum()`](https://pytorch.org/docs/stable/generated/torch.sum.html) | 지정한 차원(방향)을 기준으로 평균이나 전체 합계를 구합니다. 오차(Loss)를 하나로 뭉칠 때 자주 씁니다. | `loss = diff.mean()` |
+
+### 3. 필수 신경망 계층 (Neural Network Modules `torch.nn`)
+알고리즘을 직접 짜지 않고, 장난감 레고 블록처럼 가져다 조립하는 뼈대들입니다.
+
+| 분류 | 함수/메서드 | 간단 설명 | 실무 예제 코드 |
+| :---: | :--- | :--- | :--- |
+| **선형 변환** | [`nn.Linear()`](https://pytorch.org/docs/stable/generated/torch.nn.Linear.html) | Fully Connected 계층. 입력값과 가중치(W)를 행렬곱하고 편향(b)을 더하는 가장 뼈대가 되는 함수입니다. | `self.fc = nn.Linear(128, 10)` |
+| **CNN / RNN** | [`nn.Conv2d()`](https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html) / [`nn.RNN()`](https://pytorch.org/docs/stable/generated/torch.nn.RNN.html) | 이미지의 공간적 특징을 뽑거나(Conv), 시간의 흐름에 따른 문맥(Hidden State)을 누적기억(RNN)합니다. | `conv = nn.Conv2d(1, 32, 3)` |
+| **단어장** | [`nn.Embedding()`](https://pytorch.org/docs/stable/generated/torch.nn.Embedding.html) | 단어 번호를 다차원 특징 표(Vector)로 바꿉니다. (원핫인코딩 텐서와 가중치 W를 곱한 것과 100% 동치 연산) | `emb = nn.Embedding(100, 8)` |
+
+### 4. 🔀 비선형 활성화 스위치 (Activation Functions)
+단순한 1차원 선형 덧셈(W)만으로 풀 수 없는 복잡한 문제를 꺾고 비틀어 풀게 해주는 생명력(비선형성) 주입기입니다.
+
+| 분류 | 함수/메서드 | 형태 (수식/그래프) | 용도 및 실무 예제 코드 |
+| :---: | :--- | :--- | :--- |
+| **대세 스위치** | [`F.relu()`](https://pytorch.org/docs/stable/generated/torch.nn.functional.relu.html) | `max(0, x)` (0 이하는 차단, 양수는 통과) | 딥러닝 층 사이사이에 **무조건** 끼워 넣는 만능 스위치. 미분이 쉬워 학습이 가장 빠릅니다. <br>`x = F.relu(x)` |
+| **확률 변환식** | [`F.softmax()`](https://pytorch.org/docs/stable/generated/torch.nn.functional.softmax.html) | 지수 함수로 출력값을 다극화 | 각 클래스의 무질서한 출력값(`[2.0, -1.0, 0.5]`)을 **"다 합치면 1.0(100%)"**이 되는 예쁜 **확률**(`[81%, 5%, 14%]`)로 강제 변환합니다. 마지막 다중 분류에 씁니다. <br>`prob = F.softmax(out, dim=1)` |
+| **S자형 커브** | [`torch.sigmoid()`](https://pytorch.org/docs/stable/generated/torch.sigmoid.html) | 출력을 **`0.0 ~ 1.0`** 사이로 찌그러트림 | **"동전의 앞뒤(이분법)"**를 맞추는 이진 분류(긍정/부정)의 맨 마지막에 주로 쓰입니다. <br>`prob = torch.sigmoid(out)` |
+| **강화된 S자** | [`torch.tanh()`](https://pytorch.org/docs/stable/generated/torch.tanh.html) | 출력을 **`-1.0 ~ 1.0`** 사이로 찌그러트림 | 시그모이드와 비슷하나, 0을 중심으로 음수 방향(-)도 표현할 수 있어 RNN 내부에 즐겨 사용됩니다. <br>`hx = torch.tanh(x)` |
+
+### 5. 🎯 훈련 및 최적화 엔진 (Training & Optimizers)
+조립된 모델 뼈대의 가중치를 정답에 가깝게 실제로 깎아내는(학습시키는) 엔진입니다.
+
+| 분류 | 함수/메서드 | 간단 설명 | 실무 예제 코드 |
+| :---: | :--- | :--- | :--- |
+| **오차 계산** | [`nn.CrossEntropyLoss()`](https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html) | 🚨 **주의: 이 녀석 내부엔 이미 `Softmax` 연산이 기본 내장되어 있습니다!** 따라서 모델의 맨 마지막에 `Softmax()`를 거치지 않은 **날 것의 예측 점수(Logits)**를 그대로 갖다 바치며 가장 빠르고 정확하게 정답과의 오차를 계산합니다. | `loss = criterion(logits, labels)` |
+| **최대값 확인** | [`torch.argmax()`](https://pytorch.org/docs/stable/generated/torch.argmax.html) | 텐서에서 가장 확률이 높은 **"1등 자리 등수 번호(Index)"**를 뽑아줍니다. 모델 채점 시 필수입니다. | `pred_idx = torch.argmax(out, dim=1)` |
+| **최적화 도구** | [`optim.Adam()`](https://pytorch.org/docs/stable/generated/torch.optim.Adam.html) | 계산된 오차(Loss)의 내리막길 방향으로 가중치(w)를 직접 깎아내려 가는 영리한 작업반장입니다. | `opt = optim.Adam(model.parameters())` |
+| **3단계 청소** | `opt.zero_grad()` | 1. 🧹 옛날의 낡은 미분(기울기) 쓰레기통 비우기 | `opt.zero_grad()` |
+| **3단계 수집** | `loss.backward()` | 2. ⏪ 결과부터 꺼꾸로 각 가중치의 미분(책임량) 모으기 | `loss.backward()` |
+| **3단계 수정** | `opt.step()` | 3. 🛠 수집한 정보를 바탕으로 실제 가중치 숫자들 깎기 | `opt.step()` |
