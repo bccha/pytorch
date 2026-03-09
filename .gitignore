@@ -27,3 +27,6 @@ data/
 # OS specific files
 .DS_Store
 Thumbs.db
+
+# User generated
+# MEMO.md moved to private_memos submodule
