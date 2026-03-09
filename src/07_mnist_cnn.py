@@ -12,32 +12,44 @@ class MNIST_CNN(nn.Module):
         super(MNIST_CNN, self).__init__()
         # 이미지 크기: 1채널 28x28
         
-        # 첫 번째 Conv 레이어: 입력 채널 1, 출력 채널 32, 커널(필터) 사이즈 3x3
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=3, padding=1)
+        # 첫 번째 Conv 레이어: 입력 채널 1, 출력 채널 32, 커널 3x3, stride 2 (크기 반으로 줆)
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=3, stride=2, padding=1)
+        self.bn1 = nn.BatchNorm2d(32) # [추가] 2D 공간 정보 유지 정규화
         self.relu1 = nn.ReLU()
-        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2) # 크기가 28x28 -> 14x14 로 줄어듦
+        # MaxPool 제거
         
-        # 두 번째 Conv 레이어: 입력 32, 출력 64, 커널 3x3
-        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1)
+        # 두 번째 Conv 레이어: 입력 32, 출력 64, 커널 3x3, stride 2 (다시 크기 반으로 줆)
+        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2, padding=1)
+        self.bn2 = nn.BatchNorm2d(64) # [추가] 64채널 2D 정규화
         self.relu2 = nn.ReLU()
-        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2) # 크기가 14x14 -> 7x7 로 줄어듦
+        # MaxPool 제거
         
         # 완전 연결층 (Fully Connected Layer)
         # 특징 맵 크기: 64채널 * 7가로 * 7세로
         self.fc1 = nn.Linear(64 * 7 * 7, 128)
+        self.bn3 = nn.BatchNorm1d(128) # [추가] 1차원으로 펴진 벡터 정규화
         self.relu3 = nn.ReLU()
         self.fc2 = nn.Linear(128, 10) # 0~9 클래스 출력
 
     def forward(self, x):
-        # Feature Extraction (특징 추출 파트)
-        x = self.pool1(self.relu1(self.conv1(x)))
-        x = self.pool2(self.relu2(self.conv2(x)))
+        # 1층 통과: Conv(stride=2) -> BatchNorm -> ReLU
+        x = self.conv1(x)
+        x = self.bn1(x) 
+        x = self.relu1(x)
         
-        # 분류를 위해 1차원으로 쭉 폅니다 (Flatten)
-        x = x.view(x.size(0), -1) 
+        # 2층 통과: Conv(stride=2) -> BatchNorm -> ReLU
+        x = self.conv2(x)
+        x = self.bn2(x) 
+        x = self.relu2(x)
         
-        # Classification (분류 파트)
-        x = self.relu3(self.fc1(x))
+        # 2차원 공간 정보를 1차원 벡터로 일렬로 쫙 폅니다.
+        # 크기 변환: [Batch, 64, 7, 7] -> [Batch, 64 * 7 * 7]
+        x = x.view(-1, 64 * 7 * 7)
+        
+        # 마지막 FC층: Linear -> BatchNorm -> ReLU -> Linear
+        x = self.fc1(x)
+        x = self.bn3(x)
+        x = self.relu3(x)
         x = self.fc2(x)
         return x
 
