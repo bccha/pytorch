@@ -1,0 +1,3 @@
+[submodule "private_memos"]
+	path = private_memos
+	url = https://github.com/bccha/memo.git
