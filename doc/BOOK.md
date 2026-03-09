@@ -592,7 +592,20 @@ PyTorch는 모양(Shape)이 완전히 똑같지 않은 두 텐서끼리 덧셈, 
 | **차원 조작** | [`tensor.unsqueeze()`](https://pytorch.org/docs/stable/generated/torch.unsqueeze.html) / [`tensor.squeeze()`](https://pytorch.org/docs/stable/generated/torch.squeeze.html) | 특정 위치에 '크기가 1인 가짜 차원'을 끼워 넣거나(un), 반대로 크기가 1인 차원을 전부 쥐어짜서 버립니다(sq). | `x = x.unsqueeze(dim=0)` |
 | **행렬 뒤집기** | [`tensor.transpose()`](https://pytorch.org/docs/stable/generated/torch.transpose.html) / [`tensor.permute()`](https://pytorch.org/docs/stable/generated/torch.permute.html) | 사진의 축(예: Channel, Height, Width) 순서를 뒤바꿀 때 사용합니다. `permute`는 여러 축을 한 번에 바꿀 수 있습니다. | `img = img.permute(2, 0, 1)` |
 
-### 2. 수학 및 집계 연산 (Math & Aggregation)
+### 2. 텐서 인덱싱 및 데이터 추출 (Indexing & Slicing)
+거대한 텐서에서 내가 원하는 조각(Patch)이나 특정 조건에 맞는 데이터만 콕 집어서 뽑아낼 때 파이썬 리스트보다 훨씬 다채로운 기능을 제공합니다.
+
+| 분류 | 문법/메서드 | 간단 설명 | 실무 예제 코드 |
+| :---: | :--- | :--- | :--- |
+| **기본 조각내기** | `tensor[시작:끝]` | 넘파이(Numpy) 및 파이썬 리스트와 100% 동일한 **슬라이싱(Slicing)**입니다. 인덱스는 0부터 시작합니다. | `첫5개 = x[:5]`<br>`마지막 = x[-1]` |
+| **다차원 썰기** | `tensor[:, 0:3, :, :]` | 4차원 사진 데이터 `[Batch, Channel, Height, Width]`에서 특정 채널(ex. 0~2번 RGB)만 썰어내고 싶을 때 직관적으로 콤마(`,`)로 축을 구분합니다. | `rgb = img[:, 0:3, :, :]` |
+| **나머지 축 생략** | `tensor[..., 0]` | 파이썬 마법의 점 3개 **엘리시스(`...`)** 입니다. "나머지 중간 차원들은 몰라도 일단 전부 그대로 둬!"라는 뜻입니다. 길게 `[:, :, :, 0]` 이라고 쳐야 할 것을 짧고 우아하게 줄여줍니다. | `끝축만 = img[..., -1]` |
+| **조건부 마스킹** | `tensor[tensor > 0]` | 특정 조건을 만족(True/False 배열)하는 텐서의 요소들만 **1차원 배열로 몽땅 추려낼 때** 씁니다. (불리언 인덱싱) | `양수만 = x[x > 0]` |
+| **인덱스 배열 추출** | `tensor[idx_tensor]` | 번호표(`LongTensor`)들이 여러 장 담긴 **다른 텐서를 인덱스 대신 집어넣어**, 원하는 순서대로 데이터 블록을 뭉터기로 복사해 가져오는 고급 기법입니다. | `picked = x[torch.tensor([0, 2, 2])]` |
+| **1개 값 추출** | [`tensor.item()`](https://pytorch.org/docs/stable/generated/torch.Tensor.item.html) | `tensor(0.245)` 처럼 텐서 껍데기에 갇혀있는 단 1개의 알맹이 숫자를 **순수 파이썬 실수(float)**로 빼냅니다. 오차(Loss) 출력할 때 필수입니다. | `print(loss.item())` |
+| **특정 축(안쪽) 추출**| [`torch.gather()`](https://pytorch.org/docs/stable/generated/torch.gather.html) | 행렬의 각 줄마다 내가 원하는 구체적인 인덱스 번호들만 골라서 쏙쏙 뽑아 새로운 배열을 만듭니다. (심화 자연어처리 등에서 자주 쓰임) | `picked = torch.gather(x, 1, idx)` |
+
+### 3. 수학 및 집계 연산 (Math & Aggregation)
 신경망 내부의 계산이나 손실(Loss), 정확도를 구할 때 필수적인 연산입니다.
 
 | 분류 | 함수/메서드 | 간단 설명 | 실무 예제 코드 |
@@ -601,7 +614,7 @@ PyTorch는 모양(Shape)이 완전히 똑같지 않은 두 텐서끼리 덧셈, 
 | **최대값/인덱스** | [`torch.max()`](https://pytorch.org/docs/stable/generated/torch.max.html) / [`torch.argmax()`](https://pytorch.org/docs/stable/generated/torch.argmax.html) | 텐서에서 가장 값이 큰 원소(확률)를 찾거나, 그 원소가 있는 **1등 자리 번호(인덱스)**를 반환합니다. (분류기 결과 확인용) | `_, pred = torch.max(out, 1)` |
 | **평균/합계** | [`torch.mean()`](https://pytorch.org/docs/stable/generated/torch.mean.html) / [`torch.sum()`](https://pytorch.org/docs/stable/generated/torch.sum.html) | 지정한 차원(방향)을 기준으로 평균이나 전체 합계를 구합니다. 오차(Loss)를 하나로 뭉칠 때 자주 씁니다. | `loss = diff.mean()` |
 
-### 3. 필수 신경망 계층 (Neural Network Modules `torch.nn`)
+### 4. 필수 신경망 계층 (Neural Network Modules `torch.nn`)
 알고리즘을 직접 짜지 않고, 장난감 레고 블록처럼 가져다 조립하는 뼈대들입니다.
 
 | 분류 | 함수/메서드 | 간단 설명 | 실무 예제 코드 |
@@ -610,7 +623,7 @@ PyTorch는 모양(Shape)이 완전히 똑같지 않은 두 텐서끼리 덧셈, 
 | **CNN / RNN** | [`nn.Conv2d()`](https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html) / [`nn.RNN()`](https://pytorch.org/docs/stable/generated/torch.nn.RNN.html) | 이미지의 공간적 특징을 뽑거나(Conv), 시간의 흐름에 따른 문맥(Hidden State)을 누적기억(RNN)합니다. | `conv = nn.Conv2d(1, 32, 3)` |
 | **단어장** | [`nn.Embedding()`](https://pytorch.org/docs/stable/generated/torch.nn.Embedding.html) | 단어 번호를 다차원 특징 표(Vector)로 바꿉니다. (원핫인코딩 텐서와 가중치 W를 곱한 것과 100% 동치 연산) | `emb = nn.Embedding(100, 8)` |
 
-### 4. 🔀 비선형 활성화 스위치 (Activation Functions)
+### 5. 🔀 비선형 활성화 스위치 (Activation Functions)
 단순한 1차원 선형 덧셈(W)만으로 풀 수 없는 복잡한 문제를 꺾고 비틀어 풀게 해주는 생명력(비선형성) 주입기입니다.
 
 | 분류 | 함수/메서드 | 형태 (수식/그래프) | 용도 및 실무 예제 코드 |
@@ -620,7 +633,7 @@ PyTorch는 모양(Shape)이 완전히 똑같지 않은 두 텐서끼리 덧셈, 
 | **S자형 커브** | [`torch.sigmoid()`](https://pytorch.org/docs/stable/generated/torch.sigmoid.html) | 출력을 **`0.0 ~ 1.0`** 사이로 찌그러트림 | **"동전의 앞뒤(이분법)"**를 맞추는 이진 분류(긍정/부정)의 맨 마지막에 주로 쓰입니다. <br>`prob = torch.sigmoid(out)` |
 | **강화된 S자** | [`torch.tanh()`](https://pytorch.org/docs/stable/generated/torch.tanh.html) | 출력을 **`-1.0 ~ 1.0`** 사이로 찌그러트림 | 시그모이드와 비슷하나, 0을 중심으로 음수 방향(-)도 표현할 수 있어 RNN 내부에 즐겨 사용됩니다. <br>`hx = torch.tanh(x)` |
 
-### 5. 🎯 훈련 및 최적화 엔진 (Training & Optimizers)
+### 6. 🎯 훈련 및 최적화 엔진 (Training & Optimizers)
 조립된 모델 뼈대의 가중치를 정답에 가깝게 실제로 깎아내는(학습시키는) 엔진입니다.
 
 | 분류 | 함수/메서드 | 간단 설명 | 실무 예제 코드 |
