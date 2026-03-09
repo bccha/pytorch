@@ -13,6 +13,11 @@ class MNIST_FC(nn.Module):
         # MNIST 이미지는 28x28 픽셀 = 784 픽셀
         # Layer 1: 입력 784 -> 은닉층 128
         self.fc1 = nn.Linear(28 * 28, 128)
+        
+        # [참고] 실무형 정규화(BatchNorm) 적용 시 여기에 추가합니다.
+        # (Dead ReLU 방지 및 학습 속도 향상)
+        # self.bn1 = nn.BatchNorm1d(128)
+        
         # 활성화 함수
         self.relu = nn.ReLU()
         # Layer 2: 은닉층 128 -> 출력 10 (0~9 숫자)
@@ -22,6 +27,10 @@ class MNIST_FC(nn.Module):
         # 이미지를 1차원 벡터로 쫙 폅니다. [Batch, 1, 28, 28] -> [Batch, 784]
         x = x.view(-1, 28 * 28)
         x = self.fc1(x)
+        
+        # [참고] 위에서 선언한 Batch Normalization을 활성화(ReLU) 직전에 통과시킵니다.
+        # x = self.bn1(x)
+        
         x = self.relu(x)
         x = self.fc2(x)
         return x
