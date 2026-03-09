@@ -85,35 +85,10 @@ class Im2ColAntBeeCNN(nn.Module):
         x = self.classifier(x)
         return x
 
-def main():
-    print("=== NPU/GPU 가속의 핵심: im2col 연산으로 구현한 CNN 개미/벌 분류 ===")
-    print("PyTorch의 nn.Conv2d를 쓰지 않고 F.unfold와 행렬 곱셈으로 동일한 결과를 도출합니다.\n")
-    
-    custom_transform = transforms.Compose([
-        transforms.Resize((224, 224)), 
-        transforms.ToTensor(),         
-    ])
-
-    data_dir = './data/hymenoptera_data'
-    image_datasets = {
-        'train': datasets.ImageFolder(os.path.join(data_dir, 'train'), custom_transform),
-        'val':   datasets.ImageFolder(os.path.join(data_dir, 'val'),   custom_transform)
-    }
-    
-    dataloaders = {
-        'train': DataLoader(image_datasets['train'], batch_size=4, shuffle=True),
-        'val':   DataLoader(image_datasets['val'],   batch_size=4, shuffle=False)
-    }
-    
-    dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val']}
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"사용 기기: {device}")
-    
-    model = Im2ColAntBeeCNN().to(device)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-
-    epochs = 5 # 증명이 목적이므로 5 에폭만 돌립니다.
+def train_model(model, dataloaders, dataset_sizes, criterion, optimizer, device, epochs=5):
+    """
+    [4] 모델 학습루프 모듈화
+    """
     best_acc = 0.0
 
     for epoch in range(epochs):
@@ -155,8 +130,42 @@ def main():
             if phase == 'val' and epoch_acc > best_acc:
                 best_acc = epoch_acc
 
-    print(f"\n학습 완료! (im2col 기반 연산 검증 최고 정확도: {best_acc:4f})")
+    print(f"\n학습 완료! (im2col 기반 연산 검증 최고 정확도: {best_acc:.4f})")
     print("공간 연산(Sliding Window)이 단순한 2D 행렬 곱셈(GEMM)으로 완벽히 대체 작동함을 확인했습니다!")
+    return model
+
+def main():
+    print("=== NPU/GPU 가속의 핵심: im2col 연산으로 구현한 CNN 개미/벌 분류 ===")
+    print("PyTorch의 nn.Conv2d를 쓰지 않고 F.unfold와 행렬 곱셈으로 동일한 결과를 도출합니다.\n")
+    
+    custom_transform = transforms.Compose([
+        transforms.Resize((224, 224)), 
+        transforms.ToTensor(),         
+    ])
+
+    data_dir = './data/hymenoptera_data'
+    image_datasets = {
+        'train': datasets.ImageFolder(os.path.join(data_dir, 'train'), custom_transform),
+        'val':   datasets.ImageFolder(os.path.join(data_dir, 'val'),   custom_transform)
+    }
+    
+    dataloaders = {
+        'train': DataLoader(image_datasets['train'], batch_size=4, shuffle=True),
+        'val':   DataLoader(image_datasets['val'],   batch_size=4, shuffle=False)
+    }
+    
+    dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val']}
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"사용 기기: {device}")
+    
+    model = Im2ColAntBeeCNN().to(device)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+    epochs = 5 # 증명이 목적이므로 5 에폭만 돌립니다.
+    
+    # 모듈화된 학습 함수 호출
+    model = train_model(model, dataloaders, dataset_sizes, criterion, optimizer, device, epochs=epochs)
 
 if __name__ == '__main__':
     main()

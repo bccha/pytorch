@@ -80,6 +80,50 @@ class SimpleRNNClassifier(nn.Module):
 # ==========================================
 # 3. 훈련 루프 (Training)
 # ==========================================
+def train_model(model, inputs, labels, criterion, optimizer, epochs=100):
+    """
+    [3] RNN 모델 훈련 루프
+    """
+    print("\n[ 훈련 시작 ]")
+    for epoch in range(epochs):
+        model.train()
+        optimizer.zero_grad()
+        
+        # 모델 순전파 (RNN이 단어를 순서대로 꿀꺽꿀꺽 삼키며 최종 예측 반환)
+        outputs = model(inputs)
+        
+        # 오차 계산 및 역전파
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        
+        if (epoch+1) % 20 == 0:
+            print(f"Epoch {epoch+1}/{epochs} | Loss: {loss.item():.4f}")
+            
+    return model
+
+@torch.no_grad()
+def evaluate_model(model, test_inputs, test_x_data, test_y_data, title="[ 예측 테스트 (Inference) ]"):
+    """
+    [4] 학습된 모델 평가 함수
+    데코레이터로 미분 궤적 저장을 차단하여 속도와 메모리를 확보합니다.
+    """
+    print(f"\n{title}")
+    model.eval()
+    
+    new_preds = model(test_inputs)
+    
+    for i, sentence in enumerate(test_x_data):
+        # 긍정 확률이 0.5(50%)를 넘으면 긍정(1), 아니면 부정(0)
+        pred_label = "긍정 😍" if new_preds[i].item() > 0.5 else "부정 😡"
+        prob = new_preds[i].item() * 100
+        expected = '긍정' if test_y_data[i] == 1 else '부정'
+        
+        # 예측값과 실제값이 일치하는지 판별
+        is_correct = "✅" if (new_preds[i].item() > 0.5) == (test_y_data[i] == 1) else "❌"
+        
+        print(f"문장 데이터 {sentence} \t=> 예측: {pred_label} (확률: {prob:5.1f}%) | 실제: {expected} {is_correct}")
+
 def main():
     print("=== 11. RNN을 이용한 영화 리뷰 감성(긍정/부정) 분류 기초 실습 ===\n")
     
@@ -96,40 +140,18 @@ def main():
     
     epochs = 100 # 데이터가 극도로 적으므로 에폭을 많이 돌립니다.
     
-    print("\n[ 훈련 시작 ]")
-    for epoch in range(epochs):
-        optimizer.zero_grad()
-        
-        # 모델 순전파 (RNN이 단어를 순서대로 꿀꺽꿀꺽 삼키며 최종 예측 반환)
-        outputs = model(inputs)
-        
-        # 오차 계산 및 역전파
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
-        
-        if (epoch+1) % 20 == 0:
-            print(f"Epoch {epoch+1}/{epochs} | Loss: {loss.item():.4f}")
+    # [3] 모듈화된 훈련 호출
+    model = train_model(model, inputs, labels, criterion, optimizer, epochs=epochs)
             
     print("\n[ 훈련 단어장 ]")
     print("1:이, 2:영화, 3:정말, 4:최고, 5:추천, 6:최악, 7:돈, 8:아까워, 9:시간, 10:낭비\n")
             
-    print("[ 예측 테스트 (Inference) ]")
-    # 훈련된 모델 평가 모드
-    model.eval()
-    with torch.no_grad():
-        test_preds = model(inputs)
-        
-        for i, sentence in enumerate(x_data):
-            # 긍정 확률이 0.5(50%)를 넘으면 긍정(1), 아니면 부정(0)
-            pred_label = "긍정 😍" if test_preds[i].item() > 0.5 else "부정 😡"
-            prob = test_preds[i].item() * 100
-            
-            # 원래 숫자를 보기 좋게 텍스트로 변환 (Pad는 무시)
-            print(f"문장 데이터 {sentence} \t=> 예측: {pred_label} (긍정 확률: {prob:.1f}%) | 정답: {'긍정' if y_data[i]==1 else '부정'}")
+    # [4-1] 기존 훈련 데이터 자기 평가
+    evaluate_model(model, inputs, x_data, y_data, title="[ 훈련 데이터 자기 회고 (Inference) ]")
 
     print("\n[ 🧐 새로운 문장(10개) 일반화 테스트 ]")
     print("훈련 데이터에 없던 새로운 문장 조합을 모델이 얼마나 잘 맞추는지 확인합니다.")
+    
     # 새로운 조합 10가지
     test_x_data = [
         [3, 4, 5, 0],    # "정말 최고 추천" (긍정)
@@ -145,21 +167,10 @@ def main():
     ]
     # 실제 사람의 생각(정답)
     test_y_data = [1, 0, 1, 0, 0, 1, 0, 1, 0, 1]
-    
     test_inputs = torch.tensor(test_x_data, dtype=torch.long)
     
-    with torch.no_grad():
-        new_preds = model(test_inputs)
-        
-        for i, sentence in enumerate(test_x_data):
-            pred_label = "긍정 😍" if new_preds[i].item() > 0.5 else "부정 😡"
-            prob = new_preds[i].item() * 100
-            expected = '긍정' if test_y_data[i] == 1 else '부정'
-            
-            # 예측값과 실제값이 일치하는지 판별
-            is_correct = "✅" if (new_preds[i].item() > 0.5) == (test_y_data[i] == 1) else "❌"
-            
-            print(f"새로운 문장 {sentence} \t=> 예측: {pred_label} (확률: {prob:5.1f}%) | 실제: {expected} {is_correct}")
+    # [4-2] 실전 안 본 데이터 평가
+    evaluate_model(model, test_inputs, test_x_data, test_y_data, title="[ 검증 데이터 실전 평가 (Test) ]")
 
 if __name__ == '__main__':
     main()

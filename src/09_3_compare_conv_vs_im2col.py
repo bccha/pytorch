@@ -46,6 +46,35 @@ class Im2colConv(nn.Module):
         return out_unfold.view(batch_size, self.out_channels, out_height, out_width)
 
 
+def measure_performance(model, x, description):
+    """
+    특정 연산(Conv2d 혹은 im2col)의 수행 시간을 측정합니다.
+    """
+    print(f"\n[ {description} 실행... ]")
+    start_time = time.time()
+    out = model(x)
+    if torch.cuda.is_available(): torch.cuda.synchronize()
+    elapsed_time = time.time() - start_time
+    print(f"-> 소요 시간: {elapsed_time:.4f}초")
+    return out
+
+def verify_results(out_standard, out_im2col):
+    """
+    수학적 결과값이 동일한지 오차를 검증합니다.
+    """
+    diff = torch.max(torch.abs(out_standard - out_im2col)).item()
+    print("\n[ 결론 및 평가 ]")
+    print(f"두 방식의 결과물 최대 오차 (차이값): {diff:.8e}")
+    
+    if diff < 1e-4:
+        print("✅ 검증 성공: nn.Conv2d는 내부적으로 im2col(행렬 곱셈)과 완벽하게 동일한 수학적 결과값을 반환합니다!")
+    else:
+        print("❌ 실패: 결괏값이 다릅니다.")
+        
+    print("\n💡 성능 해석:")
+    print("- CUDA(GPU) 환경이라면 nn.Conv2d는 Nvidia의 극도로 최적화된 cuDNN 라이브러리를 통하므로 가장 빠릅니다.")
+    print("- 하지만 그 cuDNN의 내부 깊숙한 곳에서 동작하는 하드웨어 가속의 핵심 C++ 코드가 바로 우리가 방금 Python으로 시뮬레이션한 'im2col + 행렬곱(GEMM)' 아키텍처입니다.")
+
 def main():
     print("=== PyTorch nn.Conv2d VS Custom im2col GEMM 비교 실증 ===")
     
@@ -82,35 +111,13 @@ def main():
     x = x.to(device)
 
     # (A) Standard Conv2d 측정
-    print("\n[ 1. 기본 nn.Conv2d 실행... ]")
-    start_time = time.time()
-    out_standard = net_standard(x)
-    if torch.cuda.is_available(): torch.cuda.synchronize()
-    time_standard = time.time() - start_time
-    print(f"-> 소요 시간: {time_standard:.4f}초")
+    out_standard = measure_performance(net_standard, x, "1. 기본 nn.Conv2d")
 
     # (B) Im2col Custom 측정
-    print("\n[ 2. Custom im2col + Matmul 행렬곱 연산 실행... ]")
-    start_time = time.time()
-    out_im2col = net_im2col(x)
-    if torch.cuda.is_available(): torch.cuda.synchronize()
-    time_im2col = time.time() - start_time
-    print(f"-> 소요 시간: {time_im2col:.4f}초")
+    out_im2col = measure_performance(net_im2col, x, "2. Custom im2col + Matmul 행렬곱 연산")
 
-    # [4] 검증 (수학적 결과값이 동일한지 확인)
-    # 텐서 간의 차이 절댓값의 최댓값이 1e-5.0 근처의 오차(실수 연산 한계)라면 완전히 동일한 연산임.
-    diff = torch.max(torch.abs(out_standard - out_im2col)).item()
-    print("\n[ 결론 및 평가 ]")
-    print(f"두 방식의 결과물 최대 오차 (차이값): {diff:.8e}")
-    
-    if diff < 1e-4:
-        print("✅ 검증 성공: nn.Conv2d는 내부적으로 im2col(행렬 곱셈)과 완벽하게 동일한 수학적 결과값을 반환합니다!")
-    else:
-        print("❌ 실패: 결괏값이 다릅니다.")
-        
-    print("\n💡 성능 해석:")
-    print("- CUDA(GPU) 환경이라면 nn.Conv2d는 Nvidia의 극도로 최적화된 cuDNN 라이브러리를 통하므로 가장 빠릅니다.")
-    print("- 하지만 그 cuDNN의 내부 깊숙한 곳에서 동작하는 하드웨어 가속의 핵심 C++ 코드가 바로 우리가 방금 Python으로 시뮬레이션한 'im2col + 행렬곱(GEMM)' 아키텍처입니다.")
+    # [4] 검증 (수학적 결과값이 동일한지 확인) 분리된 모듈 사용
+    verify_results(out_standard, out_im2col)
 
 if __name__ == '__main__':
     main()
