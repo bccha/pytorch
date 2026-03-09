@@ -659,3 +659,29 @@ PyTorch는 모양(Shape)이 완전히 똑같지 않은 두 텐서끼리 덧셈, 
 | **3단계 청소** | [`opt.zero_grad()`](https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html) | 1. 🧹 옛날의 낡은 미분(기울기) 쓰레기통 비우기 | `opt.zero_grad()` |
 | **3단계 수집** | [`loss.backward()`](https://pytorch.org/docs/stable/generated/torch.Tensor.backward.html) | 2. ⏪ 결과부터 꺼꾸로 각 가중치의 미분(책임량) 모으기 | `loss.backward()` |
 | **3단계 수정** | [`opt.step()`](https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.step.html) | 3. 🛠 수집한 정보를 바탕으로 실제 가중치 숫자들 깎기 | `opt.step()` |
+
+---
+
+### 7. 🎁 파이토치 필수 데코레이터 (Decorators)
+함수 위에 `@` 기호를 붙여 파이토치 엔진에게 특별한 "실행 옵션"을 일시적으로 부여하는 마법의 스티커입니다.
+
+| 분류 | 데코레이터 문법 | 공식 매뉴얼(Docs) 링크 | 간단 동작 원리 및 실무 설명 |
+| :---: | :--- | :--- | :--- |
+| **미분 추적 방지** | **`@torch.no_grad()`** | [torch.no_grad](https://pytorch.org/docs/stable/generated/torch.no_grad.html) | "이 함수 블록 안의 모든 수학 기호들은 미분(역전파)을 위한 계산 궤적을 메모리에 남기지 마라!" 라고 지시합니다. 학습이 아닌 **순수 평가(Eval) 혹은 추론 시 메모리 사용량을 절반으로 줄이고 속도를 높일 때 가장 흔하게 쓰이는 초특급 필수 스티커**입니다. |
+| **초고속 최적화 추론** | **`@torch.inference_mode()`** | [torch.inference_mode](https://pytorch.org/docs/stable/generated/torch.inference_mode.html) | `no_grad()`의 **극단적 성능 강화 최신 버전(PyTorch 1.9+)**입니다. 미분 추적을 안 하는 것을 넘어 내부 엔진 차원의 뷰(View) 추적이나 버전 관리 등 오버헤드까지 완전히 강제로 꺼버립니다. 모델 예측(Predict) 함수 위에 붙이면 극한의 속도를 낼 수 있습니다. |
+| **C++ 스크립트 컴파일** | **`@torch.jit.script`** | [TorchScript](https://pytorch.org/docs/stable/jit.html) | 파이썬 코드를 딥러닝 런타임 C++ 엔진(TorchScript)이 읽을 수 있는 언어로 통째로 **컴파일(번역 및 내장)**해버립니다. 느려 터지고 GIL 락이 걸려있는 파이썬의 한계를 우회하여, C++ 기반의 실제 웹 서버에 딥러닝 모델을 배포(Production)할 때 달아줍니다. |
+
+> [!TIP]
+> **데코레이터(`@`) 대신 `with` 구문(Context Manager)으로 쓰기**
+> 
+> 위 표에 있는 `no_grad()`나 `inference_mode()`는 사실 데코레이터뿐만 아니라 파이썬의 `with` 블록으로도 똑같이 찰떡처럼 작동합니다.
+> 
+> - **`@` 데코레이터를 쓸 때**: "이 **함수 전체**에 적용해주세요!" (깔끔하고 우아함)
+> - **`with` 구문을 쓸 때**: "함수 전체 말고, 딱 **이 들여쓰기 블록 안쪽 코드**에만 적용해주세요!" (세밀한 제어)
+> 
+> **👨‍💻 실무 동적 응용 (`torch.set_grad_enabled`)**
+> 만약 훈련(Train) 루프와 검증(Val) 루프가 하나로 합쳐져 있어서 `with no_grad():`를 썼다 지웠다 할 수 없다면 어떻게 할까요?
+> 그럴 땐 변수 값(True/False)에 따라 자물쇠를 자동으로 열고 닫는 **스마트 키퍼**인 `with torch.set_grad_enabled(phase == 'train'):` 를 씁니다! 
+> (우리가 스터디한 `09_custom_cnn`과 `10_transfer_learning` 스크립트에서 이 고급 기술을 사용했습니다)
+
+*(치트시트는 계속해서 업데이트 됩니다)*
