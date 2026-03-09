@@ -653,7 +653,9 @@ PyTorch는 모양(Shape)이 완전히 똑같지 않은 두 텐서끼리 덧셈, 
 
 | 분류 | 함수/메서드 | 간단 설명 | 실무 예제 코드 |
 | :---: | :--- | :--- | :--- |
-| **오차 계산** | [`nn.CrossEntropyLoss()`](https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html) | 🚨 **주의: 이 녀석 내부엔 이미 `Softmax` 연산이 기본 내장되어 있습니다!** 따라서 모델의 맨 마지막에 `Softmax()`를 거치지 않은 **날 것의 예측 점수(Logits)**를 그대로 갖다 바치며 가장 빠르고 정확하게 정답과의 오차를 계산합니다. | `loss = criterion(logits, labels)` |
+| **오차 계산(다중분류/생성)** | [`nn.CrossEntropyLoss()`](https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html) | 🚨 **주의: 내부엔 이미 `Softmax` 연산이 기본 내장되어 있습니다!** 따라서 모델의 맨 마지막에 `Softmax()`를 거치지 않은 **날 것의 숫자(Logits)**를 그대로 바칩니다. (3개 이상 다지선다 고르기에 사용) | `loss = criterion(logits, labels)` |
+| **오차 계산(이진분류)** | [`nn.BCEWithLogitsLoss()`](https://pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html) | 내부적으로 `Sigmoid` 연산을 포함하여 스팸/정상, 암/정상 같은 **O/X 이진 퀴즈**의 오차를 가장 빠르고 안정적으로 구해줍니다. 똑같이 날것의 1열짜리 출력을 넘깁니다. | `loss = criterion(logits, labels)` |
+| **오차 계산(회귀/복원)** | [`nn.MSELoss()`](https://pytorch.org/docs/stable/generated/torch.nn.MSELoss.html) | 집값, 나이 등 연속적인 숫자 수치를 주관식으로 맞추거나 픽셀 복원(미드저니 등)을 할 때 사용합니다. 예측 숫자와 정답 숫자를 그냥 빼서 제곱(페널티 폭증)해 버립니다. | `loss = criterion(pred, target)` |
 | **최대값 확인** | [`torch.argmax()`](https://pytorch.org/docs/stable/generated/torch.argmax.html) | 텐서에서 가장 확률이 높은 **"1등 자리 등수 번호(Index)"**를 뽑아줍니다. 모델 채점 시 필수입니다. | `pred_idx = torch.argmax(out, dim=1)` |
 | **최적화 도구** | [`optim.Adam()`](https://pytorch.org/docs/stable/generated/torch.optim.Adam.html) | 계산된 오차(Loss)의 내리막길 방향으로 가중치(w)를 직접 깎아내려 가는 영리한 작업반장입니다. | `opt = optim.Adam(model.parameters())` |
 | **3단계 청소** | [`opt.zero_grad()`](https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html) | 1. 🧹 옛날의 낡은 미분(기울기) 쓰레기통 비우기 | `opt.zero_grad()` |

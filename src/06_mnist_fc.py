@@ -16,7 +16,7 @@ class MNIST_FC(nn.Module):
         
         # [참고] 실무형 정규화(BatchNorm) 적용 시 여기에 추가합니다.
         # (Dead ReLU 방지 및 학습 속도 향상)
-        # self.bn1 = nn.BatchNorm1d(128)
+        self.bn1 = nn.BatchNorm1d(128)
         
         # 활성화 함수
         self.relu = nn.ReLU()
@@ -29,7 +29,7 @@ class MNIST_FC(nn.Module):
         x = self.fc1(x)
         
         # [참고] 위에서 선언한 Batch Normalization을 활성화(ReLU) 직전에 통과시킵니다.
-        # x = self.bn1(x)
+        x = self.bn1(x)
         
         x = self.relu(x)
         x = self.fc2(x)
