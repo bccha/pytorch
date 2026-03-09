@@ -166,6 +166,31 @@ print(loss)
 
 우리가 콘솔 창에 결과를 예쁘게 출력(`print`)해서 눈으로 볼 때만 바깥에서 임시로 확률 변환(Softmax)을 하고, **실제 딥러닝 학습 로직 파이프라인 안에서는 날것의 숫자(Logits)를 그대로 바로 넘겨주어야** 치명적인 에러와 비효율이 발생하지 않습니다.
 
+### 😲 3.3 [심화] `forward()` 함수는 언제 호출되나요? (`__call__` 마법)
+앞선 코드에서 신경망 클래스 안에 `def forward(self, x):` 연산을 열심히 짜놓고는, 정작 객체를 쓸 때는 **단 한 번도 `model.forward(x)`라고 직접 호출한 적이 없습니다.** 대신 냅다 **`model(x)`** 처럼 불렀죠. 도대체 왜 그럴까요?
+
+이는 Python의 **`__call__()` 매직 메서드** 속성과 **`nn.Module`의 설계** 때문입니다.
+1. 파이썬에서 객체에 괄호 `()`를 붙여 부르면, 파이썬은 내부적으로 약속된 이름인 `__call__()` 함수를 자동 실행합니다.
+2. 부모인 `nn.Module`의 `__call__()` 함수 내부를 뜯어보면 대략 다음과 같이 생겼습니다.
+
+```python
+class Module:
+    def __call__(self, *args, **kwargs):
+        # 1. 호출되기 전 훅(Hook) 등 사전 작업 처리
+        # ...
+        
+        # 2. 🎯 여기서 자식 클래스가 구현해 둔 forward()를 자기가 대신 호출합니다!!
+        result = self.forward(*args, **kwargs)
+        
+        # 3. 호출된 후 사후 작업 처리 (Autograd 미분 파이프라인 연결 등)
+        # ...
+        return result
+```
+
+> **🚨 만약 `model.forward(x)`를 직접 부른다면?**  
+> 모듈의 1번(사전 훅 처리)과 3번(역전파 사후 처리) 과정이 모조리 점프(생략)되어 버립니다. 결과값 계산 자체는 되더라도, 뒤에 이어지는 `loss.backward()` (역전파)가 미세한 기울기값을 추적하지 못해 **학습이 완전히 망가져 버립니다.**  
+> 항상 객체 자체(`net(x)`)를 호출하여 PyTorch가 안전한 궤도 위에서 여러분의 코어 로직을 대신 실행하게 두십시오!
+
 ---
 
 ## 4장. 딥러닝 훈련 루프와 옵티마이저 완성
@@ -603,6 +628,6 @@ PyTorch는 모양(Shape)이 완전히 똑같지 않은 두 텐서끼리 덧셈, 
 | **오차 계산** | [`nn.CrossEntropyLoss()`](https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html) | 🚨 **주의: 이 녀석 내부엔 이미 `Softmax` 연산이 기본 내장되어 있습니다!** 따라서 모델의 맨 마지막에 `Softmax()`를 거치지 않은 **날 것의 예측 점수(Logits)**를 그대로 갖다 바치며 가장 빠르고 정확하게 정답과의 오차를 계산합니다. | `loss = criterion(logits, labels)` |
 | **최대값 확인** | [`torch.argmax()`](https://pytorch.org/docs/stable/generated/torch.argmax.html) | 텐서에서 가장 확률이 높은 **"1등 자리 등수 번호(Index)"**를 뽑아줍니다. 모델 채점 시 필수입니다. | `pred_idx = torch.argmax(out, dim=1)` |
 | **최적화 도구** | [`optim.Adam()`](https://pytorch.org/docs/stable/generated/torch.optim.Adam.html) | 계산된 오차(Loss)의 내리막길 방향으로 가중치(w)를 직접 깎아내려 가는 영리한 작업반장입니다. | `opt = optim.Adam(model.parameters())` |
-| **3단계 청소** | `opt.zero_grad()` | 1. 🧹 옛날의 낡은 미분(기울기) 쓰레기통 비우기 | `opt.zero_grad()` |
-| **3단계 수집** | `loss.backward()` | 2. ⏪ 결과부터 꺼꾸로 각 가중치의 미분(책임량) 모으기 | `loss.backward()` |
-| **3단계 수정** | `opt.step()` | 3. 🛠 수집한 정보를 바탕으로 실제 가중치 숫자들 깎기 | `opt.step()` |
+| **3단계 청소** | [`opt.zero_grad()`](https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html) | 1. 🧹 옛날의 낡은 미분(기울기) 쓰레기통 비우기 | `opt.zero_grad()` |
+| **3단계 수집** | [`loss.backward()`](https://pytorch.org/docs/stable/generated/torch.Tensor.backward.html) | 2. ⏪ 결과부터 꺼꾸로 각 가중치의 미분(책임량) 모으기 | `loss.backward()` |
+| **3단계 수정** | [`opt.step()`](https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.step.html) | 3. 🛠 수집한 정보를 바탕으로 실제 가중치 숫자들 깎기 | `opt.step()` |
